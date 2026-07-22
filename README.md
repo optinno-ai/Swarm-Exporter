@@ -29,12 +29,10 @@ python3 -m playwright install chromium
 
 ## インストール
 
-リポジトリを取得し、そのディレクトリでpipを実行します。
+GitHubから通常インストールします。この方法ではcloneしたフォルダは残らず、インストール後も`swarm-exporter`コマンドを使用できます。
 
 ```sh
-git clone https://github.com/optinno-ai/Swarm-Exporter.git
-cd Swarm-Exporter
-python3 -m pip install .
+python3 -m pip install "git+https://github.com/optinno-ai/Swarm-Exporter.git"
 ```
 
 仮想環境を使う場合：
@@ -42,21 +40,21 @@ python3 -m pip install .
 ```sh
 python3 -m venv .venv
 source .venv/bin/activate
-python3 -m pip install .
+python3 -m pip install "git+https://github.com/optinno-ai/Swarm-Exporter.git"
 ```
 
-開発時はeditable installも利用できます。
+ソースコードを編集する開発者だけが、cloneしたフォルダを削除せずにeditable installを使用します。
 
 ```sh
+git clone https://github.com/optinno-ai/Swarm-Exporter.git
+cd Swarm-Exporter
 python3 -m pip install -e .
 ```
 
-editable installはcloneしたディレクトリを直接参照します。インストール後にcloneしたディレクトリを削除する場合は使用せず、`python3 -m pip install .`で通常インストールしてください。
-
-editable install後にcloneしたディレクトリを削除してしまった場合は、リポジトリを再度取得し、そのディレクトリで通常インストールし直します。
+editable install後にcloneしたフォルダを削除してしまった場合は、通常インストールで修復できます。
 
 ```sh
-python3 -m pip install --force-reinstall --no-deps .
+python3 -m pip install --force-reinstall --no-deps "git+https://github.com/optinno-ai/Swarm-Exporter.git"
 ```
 
 ## 使い方
