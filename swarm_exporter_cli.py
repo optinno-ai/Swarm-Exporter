@@ -105,9 +105,6 @@ def find_chromium() -> str | None:
         "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
         "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
         "/Applications/Chromium.app/Contents/MacOS/Chromium",
-        str(Path.home() / "Applications/Google Chrome.app/Contents/MacOS/Google Chrome"),
-        str(Path.home() / "Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"),
-        str(Path.home() / "Applications/Chromium.app/Contents/MacOS/Chromium"),
         shutil.which("google-chrome"),
         shutil.which("chromium"),
         shutil.which("chromium-browser"),
@@ -141,8 +138,8 @@ def acquire_token(timeout: int, version: str) -> str:
                 context = playwright.chromium.launch_persistent_context(**launch_options)
             except Exception as error:
                 raise RuntimeError(
-                    "Chrome/Chromiumを起動できません。Google Chrome、Microsoft Edge、"
-                    "Chromiumのいずれかをインストールしてください。"
+                    "Chrome/Chromiumを起動できません。Chromeをインストールするか、"
+                    "`python3 -m playwright install chromium`を実行してください。"
                 ) from error
 
             def inspect_request(request: Any) -> None:
