@@ -23,6 +23,7 @@ from typing import Any
 API_URL = "https://api.foursquare.com/v2/users/self/checkins"
 DEFAULT_API_VERSION = "20231010"
 PAGE_SIZE = 250
+DEFAULT_OUTPUT_DIR_NAME = "swarm-exporter"
 
 CSV_COLUMNS = [
     "id",
@@ -51,7 +52,10 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Swarmの全チェックインを結合JSONとCSVへ出力します。"
     )
-    parser.add_argument("--output-dir", default="output", help="出力先 (default: output)")
+    parser.add_argument(
+        "--output-dir",
+        help="出力先 (省略時: カレントディレクトリのswarm-exporter、重複時は連番)",
+    )
     parser.add_argument("--version", default=DEFAULT_API_VERSION, help="Foursquare API version date")
     parser.add_argument("--page-size", type=int, default=PAGE_SIZE, choices=range(1, 251), metavar="1-250")
     parser.add_argument("--data-only", action="store_true", help="写真をダウンロードしない")
@@ -242,8 +246,23 @@ def download_photos(items: list[dict[str, Any]], output_dir: Path) -> tuple[int,
     return downloaded, len(jobs) - downloaded
 
 
+def create_default_output_dir(base_dir: Path | None = None) -> Path:
+    """Create and reserve a uniquely named default export directory."""
+    base_dir = base_dir or Path.cwd()
+    index = 0
+    while True:
+        suffix = f"({index})" if index else ""
+        candidate = base_dir / f"{DEFAULT_OUTPUT_DIR_NAME}{suffix}"
+        try:
+            candidate.mkdir(parents=False, exist_ok=False)
+            return candidate
+        except FileExistsError:
+            index += 1
+
+
 def write_outputs(items: list[dict[str, Any]], output_dir: Path) -> tuple[Path, Path]:
     output_dir.mkdir(parents=True, exist_ok=True)
+    (output_dir / "photos").mkdir(exist_ok=True)
     json_path = output_dir / "swarm_checkins.json"
     csv_path = output_dir / "swarm_checkins.csv"
 
@@ -264,7 +283,7 @@ def main() -> int:
     args = parse_args()
     try:
         items = fetch_all(get_token(), args.version, args.page_size)
-        output_dir = Path(args.output_dir)
+        output_dir = Path(args.output_dir) if args.output_dir else create_default_output_dir()
         json_path, csv_path = write_outputs(items, output_dir)
         if not args.data_only:
             download_photos(items, output_dir)

@@ -1,4 +1,5 @@
 output/
+swarm-exporter*/
 __pycache__/
 *.pyc
 *.egg-info/

@@ -16,6 +16,7 @@ from urllib.parse import parse_qs, urlparse
 from swarm_exporter import (
     DEFAULT_API_VERSION,
     PAGE_SIZE,
+    create_default_output_dir,
     download_photos,
     fetch_all,
     request_page,
@@ -34,7 +35,10 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="専用ブラウザでSwarmへログインし、全チェックインをJSON/CSVへ出力します。"
     )
-    parser.add_argument("--output-dir", default="output", help="出力先 (default: output)")
+    parser.add_argument(
+        "--output-dir",
+        help="出力先 (省略時: カレントディレクトリのswarm-exporter、重複時は連番)",
+    )
     parser.add_argument("--version", default=DEFAULT_API_VERSION)
     parser.add_argument("--page-size", type=int, default=PAGE_SIZE, choices=range(1, 251), metavar="1-250")
     parser.add_argument("--timeout", type=int, default=600, help="ログイン待機秒数 (default: 600)")
@@ -193,7 +197,7 @@ def main() -> int:
         token = acquire_token(args.timeout, args.version)
         print("ログインを確認しました。チェックインを取得します。", file=sys.stderr)
         items = fetch_all(token, args.version, args.page_size)
-        output_dir = Path(args.output_dir)
+        output_dir = Path(args.output_dir) if args.output_dir else create_default_output_dir()
         json_path, csv_path = write_outputs(items, output_dir)
         if not args.data_only:
             download_photos(items, output_dir)
