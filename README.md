@@ -60,9 +60,10 @@ swarm-exporter
 
 1. 専用ChromeウィンドウでSwarmのログイン画面が開きます。
 2. 自分のSwarmアカウントでログインします。
-3. 有効なAPI tokenが検出されると、ブラウザが自動的に閉じます。
-4. 全履歴の取得状況がターミナルに表示されます。
-5. カレントディレクトリの`output`へJSONとCSVが生成されます。
+3. ログインを検出すると、`https://ja.swarmapp.com/history`を自動で開いてAPI通信を発生させます。
+4. 有効なAPI tokenが検出されると、ブラウザが自動的に閉じます。
+5. 全履歴の取得状況がターミナルに表示されます。
+6. カレントディレクトリの`output`へJSONとCSVが生成されます。
 
 ```text
 output/
@@ -136,7 +137,7 @@ python3 -m playwright install chromium
 
 ### ログイン後も処理が始まらない
 
-ログイン後のSwarm画面で、プロフィールやチェックイン履歴が表示されるページへ移動してください。Foursquare API通信が発生するとtokenを検出できます。
+通常は`https://ja.swarmapp.com/history`へ自動で移動します。自動遷移しない場合は、このURLを専用ブラウザで直接開いてください。Foursquare API通信が発生するとtokenを検出できます。
 
 ### `swarm-exporter: command not found`
 

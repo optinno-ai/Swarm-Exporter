@@ -23,6 +23,7 @@ from swarm_exporter import (
 
 
 LOGIN_URL = "https://ja.swarmapp.com/login"
+HISTORY_URL = "https://ja.swarmapp.com/history"
 TOKEN_PATTERN = re.compile(r"^[A-Za-z0-9_-]{20,256}$")
 ALLOWED_COOKIE_DOMAINS = ("swarmapp.com", "foursquare.com")
 ALLOWED_API_HOSTS = ("api.foursquare.com",)
@@ -71,6 +72,15 @@ def is_checkin_token(token: str, version: str) -> bool:
     return payload.get("meta", {}).get("code") == 200
 
 
+def open_history_page(page: Any) -> bool:
+    """Open history to trigger the v2 API request containing the usable token."""
+    try:
+        page.goto(HISTORY_URL, wait_until="domcontentloaded", timeout=60_000)
+    except Exception:
+        return False
+    return True
+
+
 def token_from_cookies(context: Any) -> str | None:
     for cookie in context.cookies():
         domain = cookie.get("domain", "").lstrip(".").lower()
@@ -106,6 +116,7 @@ def acquire_token(timeout: int, version: str) -> str:
 
     captured: list[str] = []
     rejected: set[str] = set()
+    history_open_attempted = False
     with tempfile.TemporaryDirectory(prefix="swarm-exporter-browser-") as profile_dir:
         with sync_playwright() as playwright:
             launch_options: dict[str, Any] = {
@@ -153,6 +164,18 @@ def acquire_token(timeout: int, version: str) -> str:
                             "API用ではないtoken候補を除外し、通信の監視を続けます。",
                             file=sys.stderr,
                         )
+                        if not history_open_attempted:
+                            history_open_attempted = True
+                            if open_history_page(page):
+                                print(
+                                    "ログインを確認し、履歴ページを自動で開きます。",
+                                    file=sys.stderr,
+                                )
+                            else:
+                                print(
+                                    f"履歴ページを自動で開けませんでした。{HISTORY_URL}を開いてください。",
+                                    file=sys.stderr,
+                                )
                     if not context.pages:
                         raise RuntimeError("tokenを検出する前にブラウザが閉じられました。")
                     page.wait_for_timeout(500)
