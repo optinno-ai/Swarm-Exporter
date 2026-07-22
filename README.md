@@ -51,6 +51,14 @@ python3 -m pip install .
 python3 -m pip install -e .
 ```
 
+editable installはcloneしたディレクトリを直接参照します。インストール後にcloneしたディレクトリを削除する場合は使用せず、`python3 -m pip install .`で通常インストールしてください。
+
+editable install後にcloneしたディレクトリを削除してしまった場合は、リポジトリを再度取得し、そのディレクトリで通常インストールし直します。
+
+```sh
+python3 -m pip install --force-reinstall --no-deps .
+```
+
 ## 使い方
 
 インストール後、シェルから起動します。
