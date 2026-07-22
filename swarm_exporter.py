@@ -23,7 +23,7 @@ from typing import Any
 API_URL = "https://api.foursquare.com/v2/users/self/checkins"
 DEFAULT_API_VERSION = "20231010"
 PAGE_SIZE = 250
-DEFAULT_OUTPUT_DIR_NAME = "swarm-exporter"
+DEFAULT_OUTPUT_DIR_NAME = "Swarm-Exporter"
 
 CSV_COLUMNS = [
     "id",
@@ -54,7 +54,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--output-dir",
-        help="出力先 (省略時: カレントディレクトリのswarm-exporter、重複時は連番)",
+        help="出力先 (省略時: カレントディレクトリのSwarm-Exporter、重複時は連番)",
     )
     parser.add_argument("--version", default=DEFAULT_API_VERSION, help="Foursquare API version date")
     parser.add_argument("--page-size", type=int, default=PAGE_SIZE, choices=range(1, 251), metavar="1-250")

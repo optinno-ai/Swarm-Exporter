@@ -37,7 +37,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--output-dir",
-        help="出力先 (省略時: カレントディレクトリのswarm-exporter、重複時は連番)",
+        help="出力先 (省略時: カレントディレクトリのSwarm-Exporter、重複時は連番)",
     )
     parser.add_argument("--version", default=DEFAULT_API_VERSION)
     parser.add_argument("--page-size", type=int, default=PAGE_SIZE, choices=range(1, 251), metavar="1-250")
