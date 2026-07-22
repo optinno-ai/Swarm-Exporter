@@ -81,6 +81,31 @@ Swarm-Exporter/
     └── CHECKIN_ID_PHOTO_ID.jpg
 ```
 
+## Macアプリ版
+
+Macアプリ版の`Swarm-Exporter.app`は、Python、git、pip、ターミナル操作なしで起動できます。
+
+[GitHub Releases](https://github.com/optinno-ai/Swarm-Exporter/releases/latest)から`Swarm-Exporter-macOS-arm64.zip`をダウンロードして展開してください。現在の配布版はApple Silicon Mac専用です。
+
+未署名版を初めて開く場合は、FinderでアプリをControlキーを押しながらクリックして「開く」を選択してください。2回目以降は通常のダブルクリックで起動できます。
+
+1. `Swarm-Exporter.app`を開きます。
+2. 保存先を選択します。選択画面は既定で`$HOME/Downloads`を表示します。
+3. 専用ブラウザでSwarmへログインします。
+4. 選択した場所に`Swarm-Exporter`フォルダが作成され、完了後にFinderで開きます。
+
+同名フォルダがある場合は、コマンド版と同様に`Swarm-Exporter(1)`、`Swarm-Exporter(2)`のように連番が付きます。保存先の選択をキャンセルした場合は、何も作成せず終了します。
+
+Macアプリ版のビルドにはmacOSが必要です。
+
+```sh
+./scripts/build_macos.sh
+```
+
+Apple Silicon Macでは`dist/Swarm-Exporter-macOS-arm64.zip`が生成されます。Intel Mac用はIntel Mac上で同じスクリプトを実行してください。
+
+一般配布時にmacOSの警告なしで開けるようにするには、Apple Developer IDによる署名とnotarizationが別途必要です。
+
 写真をダウンロードせず、JSONとCSVだけを取得する場合：
 
 ```sh
