@@ -87,7 +87,13 @@ Macアプリ版の`Swarm-Exporter.app`は、Python、git、pip、ターミナル
 
 [GitHub Releases](https://github.com/optinno-ai/Swarm-Exporter/releases/latest)から`Swarm-Exporter-macOS-arm64.zip`をダウンロードして展開してください。現在の配布版はApple Silicon Mac専用です。
 
-未署名版を初めて開く場合は、FinderでアプリをControlキーを押しながらクリックして「開く」を選択してください。2回目以降は通常のダブルクリックで起動できます。
+現在のMacアプリ版は未署名・未公証です。macOSが「壊れているため開けません」と表示した場合、ZIPを展開した場所に応じて次のコマンドを一度だけ実行してください。
+
+```sh
+xattr -dr com.apple.quarantine "$HOME/Downloads/Swarm-Exporter.app"
+```
+
+その後は通常のダブルクリックで起動できます。一般配布でこの操作を不要にするには、Apple Developer IDによる署名とnotarizationが必要です。
 
 1. `Swarm-Exporter.app`を開きます。
 2. 保存先を選択します。選択画面は既定で`$HOME/Downloads`を表示します。
@@ -103,8 +109,6 @@ Macアプリ版のビルドにはmacOSが必要です。
 ```
 
 Apple Silicon Macでは`dist/Swarm-Exporter-macOS-arm64.zip`が生成されます。Intel Mac用はIntel Mac上で同じスクリプトを実行してください。
-
-一般配布時にmacOSの警告なしで開けるようにするには、Apple Developer IDによる署名とnotarizationが別途必要です。
 
 写真をダウンロードせず、JSONとCSVだけを取得する場合：
 
