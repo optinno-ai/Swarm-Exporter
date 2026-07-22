@@ -4,10 +4,12 @@
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import csv
 import getpass
 import json
 import os
+import shutil
 import sys
 import time
 import urllib.error
@@ -38,6 +40,9 @@ CSV_COLUMNS = [
     "longitude",
     "category",
     "shout",
+    "photo_count",
+    "photo_urls",
+    "photo_files",
     "checkin_url",
 ]
 
@@ -49,6 +54,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", default="output", help="出力先 (default: output)")
     parser.add_argument("--version", default=DEFAULT_API_VERSION, help="Foursquare API version date")
     parser.add_argument("--page-size", type=int, default=PAGE_SIZE, choices=range(1, 251), metavar="1-250")
+    parser.add_argument("--data-only", action="store_true", help="写真をダウンロードしない")
     return parser.parse_args()
 
 
@@ -114,6 +120,31 @@ def first_primary_category(venue: dict[str, Any]) -> str:
     return str(category.get("name", ""))
 
 
+def photo_url(photo: dict[str, Any]) -> str:
+    prefix = str(photo.get("prefix") or "")
+    suffix = str(photo.get("suffix") or "")
+    return f"{prefix}original{suffix}" if prefix and suffix else ""
+
+
+def safe_file_part(value: Any, fallback: str) -> str:
+    cleaned = "".join(character for character in str(value or "") if character.isalnum() or character in "-_")
+    return cleaned or fallback
+
+
+def photo_filename(checkin: dict[str, Any], photo: dict[str, Any], index: int) -> str:
+    checkin_id = safe_file_part(checkin.get("id"), "checkin")
+    photo_id = safe_file_part(photo.get("id"), f"photo-{index + 1}")
+    suffix = str(photo.get("suffix") or "")
+    extension = Path(urllib.parse.urlparse(suffix).path).suffix.lower()
+    if not extension or len(extension) > 10:
+        extension = ".jpg"
+    return f"{checkin_id}_{photo_id}{extension}"
+
+
+def checkin_photos(checkin: dict[str, Any]) -> list[dict[str, Any]]:
+    return list((checkin.get("photos") or {}).get("items") or [])
+
+
 def to_csv_row(checkin: dict[str, Any]) -> dict[str, Any]:
     venue = checkin.get("venue") or {}
     location = venue.get("location") or {}
@@ -126,6 +157,7 @@ def to_csv_row(checkin: dict[str, Any]) -> dict[str, Any]:
         ).isoformat()
 
     checkin_id = str(checkin.get("id", ""))
+    photos = checkin_photos(checkin)
     return {
         "id": checkin_id,
         "created_at": local_datetime,
@@ -142,8 +174,72 @@ def to_csv_row(checkin: dict[str, Any]) -> dict[str, Any]:
         "longitude": location.get("lng", ""),
         "category": first_primary_category(venue),
         "shout": checkin.get("shout", ""),
+        "photo_count": (checkin.get("photos") or {}).get("count", len(photos)),
+        "photo_urls": " | ".join(filter(None, (photo_url(photo) for photo in photos))),
+        "photo_files": " | ".join(
+            f"photos/{photo_filename(checkin, photo, index)}"
+            for index, photo in enumerate(photos)
+        ),
         "checkin_url": f"https://www.swarmapp.com/c/{checkin_id}" if checkin_id else "",
     }
+
+
+def download_file(url: str, destination: Path) -> str:
+    if destination.exists() and destination.stat().st_size > 0:
+        return "skipped"
+
+    request = urllib.request.Request(url, headers={"User-Agent": "Swarm-Exporter/0.1"})
+    temporary = destination.with_suffix(destination.suffix + ".part")
+    for attempt in range(4):
+        try:
+            with urllib.request.urlopen(request, timeout=60) as response, temporary.open("wb") as file:
+                shutil.copyfileobj(response, file)
+            temporary.replace(destination)
+            return "downloaded"
+        except (OSError, urllib.error.URLError, urllib.error.HTTPError) as error:
+            temporary.unlink(missing_ok=True)
+            if attempt < 3:
+                time.sleep(2**attempt)
+                continue
+            return f"failed: {error}"
+    raise AssertionError("unreachable")
+
+
+def download_photos(items: list[dict[str, Any]], output_dir: Path) -> tuple[int, int]:
+    photos_dir = output_dir / "photos"
+    jobs: list[tuple[str, Path]] = []
+    for checkin in items:
+        for index, photo in enumerate(checkin_photos(checkin)):
+            url = photo_url(photo)
+            if url:
+                jobs.append((url, photos_dir / photo_filename(checkin, photo, index)))
+
+    if not jobs:
+        print("写真: 0件", file=sys.stderr)
+        return 0, 0
+
+    photos_dir.mkdir(parents=True, exist_ok=True)
+    downloaded = 0
+    failed: list[str] = []
+    print(f"写真を取得します: {len(jobs)}件", file=sys.stderr)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+        futures = {
+            executor.submit(download_file, url, destination): destination
+            for url, destination in jobs
+        }
+        for completed, future in enumerate(concurrent.futures.as_completed(futures), 1):
+            result = future.result()
+            if result == "downloaded":
+                downloaded += 1
+            elif result.startswith("failed:"):
+                failed.append(f"{futures[future].name}: {result[8:]}")
+            if completed % 25 == 0 or completed == len(jobs):
+                print(f"写真: {completed} / {len(jobs)}", file=sys.stderr)
+
+    if failed:
+        preview = "\n".join(failed[:5])
+        raise RuntimeError(f"{len(failed)}件の写真を取得できませんでした。\n{preview}")
+    return downloaded, len(jobs) - downloaded
 
 
 def write_outputs(items: list[dict[str, Any]], output_dir: Path) -> tuple[Path, Path]:
@@ -168,7 +264,10 @@ def main() -> int:
     args = parse_args()
     try:
         items = fetch_all(get_token(), args.version, args.page_size)
-        json_path, csv_path = write_outputs(items, Path(args.output_dir))
+        output_dir = Path(args.output_dir)
+        json_path, csv_path = write_outputs(items, output_dir)
+        if not args.data_only:
+            download_photos(items, output_dir)
     except (RuntimeError, ValueError) as error:
         print(f"エラー: {error}", file=sys.stderr)
         return 1

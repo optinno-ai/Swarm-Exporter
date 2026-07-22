@@ -16,6 +16,7 @@ from urllib.parse import parse_qs, urlparse
 from swarm_exporter import (
     DEFAULT_API_VERSION,
     PAGE_SIZE,
+    download_photos,
     fetch_all,
     request_page,
     write_outputs,
@@ -37,6 +38,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--version", default=DEFAULT_API_VERSION)
     parser.add_argument("--page-size", type=int, default=PAGE_SIZE, choices=range(1, 251), metavar="1-250")
     parser.add_argument("--timeout", type=int, default=600, help="ログイン待機秒数 (default: 600)")
+    parser.add_argument("--data-only", action="store_true", help="JSONとCSVだけを取得し、写真を保存しない")
     return parser.parse_args()
 
 
@@ -191,7 +193,10 @@ def main() -> int:
         token = acquire_token(args.timeout, args.version)
         print("ログインを確認しました。チェックインを取得します。", file=sys.stderr)
         items = fetch_all(token, args.version, args.page_size)
-        json_path, csv_path = write_outputs(items, Path(args.output_dir))
+        output_dir = Path(args.output_dir)
+        json_path, csv_path = write_outputs(items, output_dir)
+        if not args.data_only:
+            download_photos(items, output_dir)
     except (RuntimeError, ValueError) as error:
         print(f"エラー: {error}", file=sys.stderr)
         return 1
