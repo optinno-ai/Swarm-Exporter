@@ -1,42 +1,44 @@
 # Swarm Exporter
 
-Swarmへ専用ブラウザでログインし、自分のチェックイン全履歴をJSONとCSVへ書き出すコマンドラインツールです。
+English | [日本語](README.ja.md)
 
-Foursquareへのデータダウンロード申請を待たず、ログイン中のブラウザ通信からチェックインAPI用tokenを自動検出します。Developer ConsoleのClient IDやClient Secret、tokenの手動コピーは不要です。
+A command-line tool that opens a dedicated browser for signing in to Swarm and exports your complete check-in history to JSON and CSV.
 
-## 主な機能
+Instead of waiting for a Foursquare data download request, it automatically detects a token for the check-in API from browser traffic after you sign in. You do not need a Developer Console Client ID or Client Secret, nor do you need to copy a token manually.
 
-- `ja.swarmapp.com`のログイン画面を専用Chromeで起動
-- Foursquare v2 APIで利用できるtokenだけを自動判定
-- OSのロケールに合わせて施設名、カテゴリ名などを取得
-- 最大250件ずつページングし、全チェックインを取得
-- 元データを維持した結合JSONを生成
-- 日時、場所、住所、座標、カテゴリ、コメントなどをCSVへ変換
-- チェックインに添付された写真を既定でダウンロード
-- 日本語版Excelでも開きやすいUTF-8 BOM付きCSV
-- 一時的な通信失敗とAPI制限に対するリトライ
+## Features
 
-## 動作環境
+- Opens the `ja.swarmapp.com` login page in a dedicated Chrome window
+- Accepts only tokens that work with the Foursquare v2 API
+- Retrieves venue names, category names, and other data using the OS locale
+- Retrieves all check-ins in pages of up to 250
+- Produces a combined JSON file while preserving the original API data
+- Converts dates, venues, addresses, coordinates, categories, comments, and more to CSV
+- Downloads photos attached to check-ins by default
+- Writes CSV with a UTF-8 BOM for compatibility with Excel
+- Retries temporary network failures and API rate-limit errors
 
-- Python 3.10以上
-- Google Chrome、Microsoft Edge、Chromiumのいずれか
-- Swarmへ接続できるネットワーク環境
+## Requirements
 
-ブラウザが見つからない場合は、Playwright用Chromiumをインストールできます。
+- Python 3.10 or later
+- Google Chrome, Microsoft Edge, or Chromium
+- A network connection that can access Swarm
+
+If no supported browser is found, you can install Playwright's Chromium:
 
 ```sh
 python3 -m playwright install chromium
 ```
 
-## インストール
+## Installation
 
-GitHubから通常インストールします。この方法ではcloneしたフォルダは残らず、インストール後も`swarm-exporter`コマンドを使用できます。
+The standard installation method uses GitHub. The cloned source directory is not retained, and the `swarm-exporter` command remains available after installation.
 
 ```sh
 python3 -m pip install "git+https://github.com/optinno-ai/Swarm-Exporter.git"
 ```
 
-仮想環境を使う場合：
+To use a virtual environment:
 
 ```sh
 python3 -m venv .venv
@@ -44,7 +46,7 @@ source .venv/bin/activate
 python3 -m pip install "git+https://github.com/optinno-ai/Swarm-Exporter.git"
 ```
 
-ソースコードを編集する開発者だけが、cloneしたフォルダを削除せずにeditable installを使用します。
+Developers who intend to edit the source can use an editable installation and keep the cloned directory:
 
 ```sh
 git clone https://github.com/optinno-ai/Swarm-Exporter.git
@@ -52,27 +54,27 @@ cd Swarm-Exporter
 python3 -m pip install -e .
 ```
 
-editable install後にcloneしたフォルダを削除してしまった場合は、通常インストールで修復できます。
+If you delete the cloned directory after an editable installation, restore the command with a standard installation:
 
 ```sh
 python3 -m pip install --force-reinstall --no-deps "git+https://github.com/optinno-ai/Swarm-Exporter.git"
 ```
 
-## 使い方
+## Usage
 
-インストール後、シェルから起動します。
+After installation, run:
 
 ```sh
 swarm-exporter
 ```
 
-1. 専用ChromeウィンドウでSwarmのログイン画面が開きます。
-2. 自分のSwarmアカウントでログインします。
-3. ログインを検出すると、`https://ja.swarmapp.com/history`を自動で開いてAPI通信を発生させます。
-4. 有効なAPI tokenが検出されると、ブラウザが自動的に閉じます。
-5. 全履歴と写真の取得状況がターミナルに表示されます。
-6. カレントディレクトリの`Swarm-Exporter`へJSON、CSV、写真が生成されます。
-   同名のディレクトリがある場合は、`Swarm-Exporter(1)`、`Swarm-Exporter(2)`のように連番が付きます。
+1. The Swarm login page opens in a dedicated Chrome window.
+2. Sign in to your Swarm account.
+3. After detecting the login, the tool automatically opens `https://ja.swarmapp.com/history` to trigger API traffic.
+4. Once a valid API token is detected, the browser closes automatically.
+5. Progress for check-in and photo downloads is displayed in the terminal.
+6. JSON, CSV, and photo files are created in `Swarm-Exporter` under the current directory.
+   If that directory already exists, the tool uses a numbered name such as `Swarm-Exporter(1)` or `Swarm-Exporter(2)`.
 
 ```text
 Swarm-Exporter/
@@ -82,101 +84,101 @@ Swarm-Exporter/
     └── CHECKIN_ID_PHOTO_ID.jpg
 ```
 
-写真をダウンロードせず、JSONとCSVだけを取得する場合：
+To export JSON and CSV without downloading photos:
 
 ```sh
 swarm-exporter --data-only
 ```
 
-`photos`ディレクトリは、写真がない場合や`--data-only`の場合も作成されます。
+The `photos` directory is created even when there are no photos or `--data-only` is used.
 
-APIの表示言語は、既定ではOSのロケールから自動検出します。明示的に指定する場合：
+By default, the API display language is detected from the OS locale. To specify it explicitly:
 
 ```sh
 swarm-exporter --locale ja
 ```
 
-指定した言語の名称がFoursquareにない項目は、Foursquareが選択した代替表記になります。
+When Foursquare has no name in the requested language, it selects a fallback representation.
 
-出力先を変更する場合：
+To change the output directory:
 
 ```sh
 swarm-exporter --output-dir ~/Downloads/swarm-export
 ```
 
-利用可能なオプションは次のコマンドで確認できます。
+To see all available options:
 
 ```sh
 swarm-exporter --help
 ```
 
-## CSVの列
+## CSV Columns
 
-| 列 | 内容 |
+| Column | Description |
 | --- | --- |
-| `id` | チェックインID |
-| `created_at` | チェックイン先のタイムゾーンを含む日時 |
-| `created_at_unix` | UNIX時刻 |
-| `timezone_offset_minutes` | UTCからの時差（分） |
-| `venue_id` / `venue_name` | 場所のIDと名称 |
-| `address` / `city` / `state` / `postal_code` / `country` | 住所情報 |
-| `latitude` / `longitude` | 緯度・経度 |
-| `category` | 場所の主要カテゴリ |
-| `shout` | チェックイン時のコメント |
-| `photo_count` | 添付写真数 |
-| `photo_urls` | 元画像URL |
-| `photo_files` | ダウンロードした画像の相対パス |
-| `checkin_url` | SwarmのチェックインURL |
+| `id` | Check-in ID |
+| `created_at` | Date and time with the check-in location's time zone |
+| `created_at_unix` | Unix timestamp |
+| `timezone_offset_minutes` | Offset from UTC in minutes |
+| `venue_id` / `venue_name` | Venue ID and name |
+| `address` / `city` / `state` / `postal_code` / `country` | Address information |
+| `latitude` / `longitude` | Coordinates |
+| `category` | Primary venue category |
+| `shout` | Comment attached to the check-in |
+| `photo_count` | Number of attached photos |
+| `photo_urls` | Original-size photo URLs |
+| `photo_files` | Relative paths to downloaded photos |
+| `checkin_url` | Swarm check-in URL |
 
-JSONにはAPIから取得したチェックインオブジェクトを加工せず、`items`配列へまとめて格納します。
+The JSON file stores the check-in objects returned by the API without modifying them, grouped under an `items` array.
 
-## セキュリティとプライバシー
+## Security and Privacy
 
-- ログインIDとパスワードはSwarmへ直接入力され、このツールは読み取りません。
-- 監視対象は、このツールが起動した一時ブラウザ内のSwarm/Foursquare通信だけです。
-- tokenは画面、ログ、JSON、CSVへ出力しません。
-- tokenはエクスポート中だけメモリに保持します。
-- 専用ブラウザの一時プロフィールは終了時に削除します。
-- 取得したJSONとCSVには位置履歴が含まれます。公開リポジトリや共有フォルダへ置かないでください。
+- Your login ID and password are entered directly into Swarm and are never read by this tool.
+- Only Swarm/Foursquare traffic inside the temporary browser started by this tool is monitored.
+- The token is never written to the screen, logs, JSON, or CSV.
+- The token is retained in memory only while the export is running.
+- The temporary browser profile is deleted when the process exits.
+- Exported JSON and CSV files contain location history. Do not place them in a public repository or shared directory.
 
-既定の出力先である`Swarm-Exporter/`には位置履歴が含まれるため、公開・共有しないでください。
+The default `Swarm-Exporter/` output directory contains location history and should not be published or shared.
 
-## tokenを直接渡す方法
+## Supplying a Token Directly
 
-ブラウザを使わず、取得済みtokenで実行する補助スクリプトも同梱しています。
+The repository also includes a helper script that can run without a browser when you already have a token:
 
 ```sh
-FOURSQUARE_OAUTH_TOKEN='取得済みtoken' python3 swarm_exporter.py
+FOURSQUARE_OAUTH_TOKEN='your-token' python3 swarm_exporter.py
 ```
 
-環境変数を設定しない場合、tokenを表示しない対話入力になります。
+If the environment variable is not set, the script prompts for the token without displaying it:
 
 ```sh
 python3 swarm_exporter.py
 ```
 
-## トラブルシューティング
+## Troubleshooting
 
-### Chromeが起動しない
+### Chrome does not start
 
-Playwright用Chromiumをインストールしてください。
+Install Playwright's Chromium:
 
 ```sh
 python3 -m playwright install chromium
 ```
 
-### ログイン後も処理が始まらない
+### Nothing happens after signing in
 
-通常は`https://ja.swarmapp.com/history`へ自動で移動します。自動遷移しない場合は、このURLを専用ブラウザで直接開いてください。Foursquare API通信が発生するとtokenを検出できます。
+The tool normally navigates to `https://ja.swarmapp.com/history` automatically. If it does not, open that URL manually in the dedicated browser. The token can be detected once Foursquare API traffic occurs.
 
 ### `swarm-exporter: command not found`
 
-pipがインストールしたスクリプトのディレクトリが`PATH`に含まれているか確認してください。仮想環境を使用している場合は、先に有効化します。
+Make sure the directory containing scripts installed by pip is included in `PATH`. If you use a virtual environment, activate it first:
 
 ```sh
 source .venv/bin/activate
 ```
 
-## 注意事項
+## Disclaimer
 
-本ツールはSwarm/Foursquareの非公式ツールです。サービス側のWeb画面、Cookie、API仕様が変更された場合、動作しなくなる可能性があります。利用者自身のアカウントとデータに対して使用してください。
+This is an unofficial Swarm/Foursquare tool. Changes to the service's website, cookies, or API may cause it to stop working. Use it only with your own account and data.
