@@ -17,8 +17,10 @@ from swarm_exporter import (
     DEFAULT_API_VERSION,
     PAGE_SIZE,
     create_default_output_dir,
+    detect_os_locale,
     download_photos,
     fetch_all,
+    normalize_locale,
     request_page,
     write_outputs,
 )
@@ -41,6 +43,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--version", default=DEFAULT_API_VERSION)
     parser.add_argument("--page-size", type=int, default=PAGE_SIZE, choices=range(1, 251), metavar="1-250")
+    parser.add_argument(
+        "--locale",
+        type=normalize_locale,
+        default=None,
+        help="APIの表示言語 (例: ja。省略時はOSのロケール)",
+    )
     parser.add_argument("--timeout", type=int, default=600, help="ログイン待機秒数 (default: 600)")
     parser.add_argument("--data-only", action="store_true", help="JSONとCSVだけを取得し、写真を保存しない")
     return parser.parse_args()
@@ -70,9 +78,9 @@ def token_from_request(request: Any) -> str | None:
     return None
 
 
-def is_checkin_token(token: str, version: str) -> bool:
+def is_checkin_token(token: str, version: str, api_locale: str) -> bool:
     try:
-        payload = request_page(token, version, 1, 0)
+        payload = request_page(token, version, 1, 0, api_locale)
     except RuntimeError:
         return False
     return payload.get("meta", {}).get("code") == 200
@@ -112,7 +120,7 @@ def find_chromium() -> str | None:
     return next((path for path in candidates if path and Path(path).exists()), None)
 
 
-def acquire_token(timeout: int, version: str) -> str:
+def acquire_token(timeout: int, version: str, api_locale: str) -> str:
     try:
         from playwright.sync_api import sync_playwright
     except ImportError as error:
@@ -163,7 +171,7 @@ def acquire_token(timeout: int, version: str) -> str:
                     for candidate in candidates:
                         if candidate in rejected:
                             continue
-                        if is_checkin_token(candidate, version):
+                        if is_checkin_token(candidate, version, api_locale):
                             return candidate
                         rejected.add(candidate)
                         print(
@@ -193,10 +201,12 @@ def acquire_token(timeout: int, version: str) -> str:
 
 def main() -> int:
     args = parse_args()
+    api_locale = args.locale or detect_os_locale()
     try:
-        token = acquire_token(args.timeout, args.version)
+        print(f"APIロケール: {api_locale}", file=sys.stderr)
+        token = acquire_token(args.timeout, args.version, api_locale)
         print("ログインを確認しました。チェックインを取得します。", file=sys.stderr)
-        items = fetch_all(token, args.version, args.page_size)
+        items = fetch_all(token, args.version, args.page_size, api_locale)
         output_dir = Path(args.output_dir) if args.output_dir else create_default_output_dir()
         json_path, csv_path = write_outputs(items, output_dir)
         if not args.data_only:

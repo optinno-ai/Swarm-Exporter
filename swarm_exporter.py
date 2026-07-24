@@ -8,8 +8,11 @@ import concurrent.futures
 import csv
 import getpass
 import json
+import locale
 import os
+import re
 import shutil
+import subprocess
 import sys
 import time
 import urllib.error
@@ -24,6 +27,8 @@ API_URL = "https://api.foursquare.com/v2/users/self/checkins"
 DEFAULT_API_VERSION = "20231010"
 PAGE_SIZE = 250
 DEFAULT_OUTPUT_DIR_NAME = "Swarm-Exporter"
+DEFAULT_LOCALE = "en"
+LOCALE_PATTERN = re.compile(r"^[A-Za-z]{2,3}(?:[-_][A-Za-z0-9]{2,8})*$")
 
 CSV_COLUMNS = [
     "id",
@@ -58,6 +63,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--version", default=DEFAULT_API_VERSION, help="Foursquare API version date")
     parser.add_argument("--page-size", type=int, default=PAGE_SIZE, choices=range(1, 251), metavar="1-250")
+    parser.add_argument(
+        "--locale",
+        type=normalize_locale,
+        default=None,
+        help="APIの表示言語 (例: ja。省略時はOSのロケール)",
+    )
     parser.add_argument("--data-only", action="store_true", help="写真をダウンロードしない")
     return parser.parse_args()
 
@@ -71,11 +82,63 @@ def get_token() -> str:
     return token
 
 
-def request_page(token: str, version: str, limit: int, offset: int) -> dict[str, Any]:
+def normalize_locale(value: str) -> str:
+    """Convert an OS/API locale to a safe Accept-Language value."""
+    candidate = value.strip().split(":", 1)[0].split(".", 1)[0].split("@", 1)[0]
+    if not LOCALE_PATTERN.fullmatch(candidate):
+        raise argparse.ArgumentTypeError(f"無効なロケールです: {value}")
+    # Foursquare v2 documents language codes such as ja and pt, not regional
+    # variants such as ja-JP and pt-BR.
+    return candidate.replace("_", "-").split("-", 1)[0].lower()
+
+
+def detect_os_locale() -> str:
+    """Return the user's OS locale, ignoring generic C/POSIX process locales."""
+    candidates: list[str | None] = []
+    if sys.platform == "darwin":
+        try:
+            result = subprocess.run(
+                ["defaults", "read", "-g", "AppleLocale"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+            )
+            if result.returncode == 0:
+                candidates.append(result.stdout.strip())
+        except (OSError, subprocess.SubprocessError):
+            pass
+
+    current_locale = locale.getlocale()[0]
+    candidates.extend(
+        [
+            current_locale,
+            os.environ.get("LC_ALL"),
+            os.environ.get("LC_MESSAGES"),
+            os.environ.get("LANG"),
+        ]
+    )
+    for candidate in candidates:
+        if not candidate or candidate.upper().split(".", 1)[0] in {"C", "POSIX"}:
+            continue
+        try:
+            return normalize_locale(candidate)
+        except argparse.ArgumentTypeError:
+            continue
+    return DEFAULT_LOCALE
+
+
+def request_page(
+    token: str, version: str, limit: int, offset: int, api_locale: str
+) -> dict[str, Any]:
     query = urllib.parse.urlencode({"v": version, "limit": limit, "offset": offset})
     request = urllib.request.Request(
         f"{API_URL}?{query}",
-        headers={"Accept": "application/json", "Authorization": f"Bearer {token}"},
+        headers={
+            "Accept": "application/json",
+            "Accept-Language": api_locale,
+            "Authorization": f"Bearer {token}",
+        },
     )
 
     for attempt in range(4):
@@ -97,12 +160,14 @@ def request_page(token: str, version: str, limit: int, offset: int) -> dict[str,
     raise AssertionError("unreachable")
 
 
-def fetch_all(token: str, version: str, page_size: int) -> list[dict[str, Any]]:
+def fetch_all(
+    token: str, version: str, page_size: int, api_locale: str
+) -> list[dict[str, Any]]:
     items: list[dict[str, Any]] = []
     expected_count: int | None = None
 
     while expected_count is None or len(items) < expected_count:
-        payload = request_page(token, version, page_size, len(items))
+        payload = request_page(token, version, page_size, len(items), api_locale)
         meta = payload.get("meta", {})
         if meta.get("code") != 200:
             raise RuntimeError(f"API error: {json.dumps(meta, ensure_ascii=False)}")
@@ -281,8 +346,10 @@ def write_outputs(items: list[dict[str, Any]], output_dir: Path) -> tuple[Path, 
 
 def main() -> int:
     args = parse_args()
+    api_locale = args.locale or detect_os_locale()
     try:
-        items = fetch_all(get_token(), args.version, args.page_size)
+        print(f"APIロケール: {api_locale}", file=sys.stderr)
+        items = fetch_all(get_token(), args.version, args.page_size, api_locale)
         output_dir = Path(args.output_dir) if args.output_dir else create_default_output_dir()
         json_path, csv_path = write_outputs(items, output_dir)
         if not args.data_only:
